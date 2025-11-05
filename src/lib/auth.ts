@@ -4,7 +4,8 @@ import { findUserById } from './placeholder-data';
 import { User } from './types';
 
 export async function getCurrentUser(): Promise<User | null> {
-  const token = cookies().get('auth_token')?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
   if (!token) {
     return null;
   }
