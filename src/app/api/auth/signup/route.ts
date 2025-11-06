@@ -6,7 +6,26 @@ import { generateToken } from '@/lib/auth-utils';
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
-    const { name, email, password } = await req.json();
+
+    let name: string | undefined;
+    let email: string | undefined;
+    let password: string | undefined;
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const body = await req.json();
+      name = body.name;
+      email = body.email;
+      password = body.password;
+    } else {
+      const form = await req.formData();
+      const n = form.get('name');
+      const e = form.get('email');
+      const p = form.get('password');
+      if (n) name = String(n);
+      if (e) email = String(e);
+      if (p) password = String(p);
+    }
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -33,6 +52,15 @@ export async function POST(req: NextRequest) {
 
     // Generate JWT token
     const token = await generateToken(user._id.toString());
+
+    // If request was a form POST, redirect to accept route which will set cookie
+    if (!contentType.includes('application/json')) {
+      const acceptUrl = new URL('/api/auth/accept', req.url);
+      acceptUrl.searchParams.set('token', token);
+      acceptUrl.searchParams.set('next', '/dashboard');
+      const response = NextResponse.redirect(acceptUrl, { status: 303 });
+      return response;
+    }
 
     const response = NextResponse.json(
       {

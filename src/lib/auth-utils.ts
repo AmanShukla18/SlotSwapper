@@ -14,12 +14,12 @@ export async function generateToken(userId: string): Promise<string> {
 }
 
 export async function verifyToken(token: string) {
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
-    return decoded;
-  } catch (error) {
-    return null;
+  // Don't catch error, let it propagate to caller
+  const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+  if (!decoded || !decoded.id) {
+    throw new Error('Invalid token payload');
   }
+  return decoded;
 }
 
 export async function getCurrentUser() {

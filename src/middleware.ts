@@ -2,33 +2,56 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/auth-utils';
 
+// Helper to skip middleware for non-page requests
+const shouldSkip = (pathname: string) =>
+  pathname.startsWith('/api/') || pathname.startsWith('/_next/') || pathname.includes('.');
+
+// Protected app routes
+const isProtected = (pathname: string) =>
+  pathname.startsWith('/dashboard') || pathname.startsWith('/marketplace') || pathname.startsWith('/requests');
+
+// Auth pages
+const isAuth = (pathname: string) => pathname === '/login' || pathname === '/signup';
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  try {
+    // Skip non-page requests
+    if (shouldSkip(pathname)) return NextResponse.next();
 
-  const isAuthPath = pathname.startsWith('/login') || pathname.startsWith('/signup');
-  const isAppPath = pathname.startsWith('/dashboard') || pathname.startsWith('/marketplace') || pathname.startsWith('/requests');
+    const token = request.cookies.get('auth_token')?.value;
 
-  const token = request.cookies.get('auth_token')?.value;
-  const decoded = token ? await verifyToken(token) : null;
-  
-  // Redirect to login if trying to access protected pages without valid token
-  if (isAppPath && !decoded) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    if (token) {
+      try {
+        const decoded = await verifyToken(token);
+        // If token is valid, prevent access to auth pages
+        if (decoded && decoded.id && isAuth(pathname)) {
+          return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
+        // If token is valid and user is accessing protected routes, allow
+        if (decoded && decoded.id) return NextResponse.next();
+      } catch (err: any) {
+        // Invalid token — clear cookie and redirect to login
+        const res = NextResponse.redirect(new URL('/login', request.url));
+        res.cookies.delete('auth_token');
+        return res;
+      }
+    }
+
+    // No valid token
+    if (isProtected(pathname) || pathname === '/') {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // Allow public or auth pages
+    return NextResponse.next();
+  } catch (err) {
+    const res = NextResponse.redirect(new URL('/login', request.url));
+    res.cookies.delete('auth_token');
+    return res;
   }
-
-  // Redirect to dashboard if trying to access auth pages with valid token
-  if ((isAuthPath || pathname === '/') && decoded) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // Redirect to login from root if not authenticated
-  if (pathname === '/' && !decoded) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/', '/login', '/signup', '/dashboard/:path*', '/marketplace/:path*', '/requests/:path*'],
-}
+  matcher: ['/((?!api|_next/static|_next/image|favicon\.ico).*)'],
+};

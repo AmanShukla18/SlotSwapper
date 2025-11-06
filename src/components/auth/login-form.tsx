@@ -1,43 +1,21 @@
-'use client';
+"use client";
 
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { login, type FormState } from '@/lib/actions';
-import { useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
 
 function SubmitButton() {
-  const { pending } = useFormStatus();
   return (
-    <Button className="w-full" type="submit" disabled={pending}>
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+    <Button className="w-full" type="submit">
       Login
     </Button>
   );
 }
 
 export function LoginForm() {
-  const initialState: FormState = { message: '', success: false };
-  const [state, dispatch] = useActionState(login, initialState);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (state.message && !state.success) {
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: state.message,
-      });
-    }
-  }, [state, toast]);
-
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
@@ -47,7 +25,7 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={dispatch} className="grid gap-4">
+        <form action="/api/auth/login" method="post" className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="email">Email</Label>
             <Input

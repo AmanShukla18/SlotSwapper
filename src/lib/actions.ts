@@ -23,7 +23,8 @@ export async function login(prevState: FormState, formData: FormData): Promise<F
       return { message: parsed.error.errors.map((e) => e.message).join(', '), success: false };
     }
 
-    const response = await fetch('/api/auth/login', {
+    const base = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 9002}`;
+    const response = await fetch(new URL('/api/auth/login', base).toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(parsed.data),
@@ -55,7 +56,8 @@ export async function signup(prevState: FormState, formData: FormData): Promise<
       return { message: parsed.error.errors.map((e) => e.message).join(', '), success: false };
     }
 
-    const response = await fetch('/api/auth/signup', {
+    const base = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 9002}`;
+    const response = await fetch(new URL('/api/auth/signup', base).toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(parsed.data),
@@ -75,7 +77,8 @@ export async function signup(prevState: FormState, formData: FormData): Promise<
 
 export async function logout() {
   try {
-    await fetch('/api/auth/logout');
+    const base = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 9002}`;
+    await fetch(new URL('/api/auth/logout', base).toString());
     revalidatePath('/');
     redirect('/login');
   } catch (error: any) {
@@ -85,7 +88,8 @@ export async function logout() {
 
 export async function updateEventStatus(eventId: string, status: EventStatus) {
   try {
-    const response = await fetch(`/api/events/${eventId}/status`, {
+    const base = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 9002}`;
+    const response = await fetch(new URL(`/api/events/${eventId}/status`, base).toString(), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -106,7 +110,8 @@ export async function updateEventStatus(eventId: string, status: EventStatus) {
 
 export async function createSwapRequest(offeredSlotId: string, requestedSlotId: string) {
   try {
-    const response = await fetch('/api/swap-requests', {
+    const base = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 9002}`;
+    const response = await fetch(new URL('/api/swap-requests', base).toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -131,7 +136,8 @@ export async function createSwapRequest(offeredSlotId: string, requestedSlotId: 
 
 export async function respondToSwapRequest(requestId: string, accept: boolean) {
   try {
-    const response = await fetch(`/api/swap-requests/${requestId}/response`, {
+    const base = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 9002}`;
+    const response = await fetch(new URL(`/api/swap-requests/${requestId}/response`, base).toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accept }),
