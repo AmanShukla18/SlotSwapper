@@ -1,31 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import User from '@/lib/models/user';
 import { generateToken } from '@/lib/auth-utils';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     await connectDB();
 
-    let name: string | undefined;
-    let email: string | undefined;
-    let password: string | undefined;
-    const contentType = req.headers.get('content-type') || '';
-
-    if (contentType.includes('application/json')) {
-      const body = await req.json();
-      name = body.name;
-      email = body.email;
-      password = body.password;
-    } else {
-      const form = await req.formData();
-      const n = form.get('name');
-      const e = form.get('email');
-      const p = form.get('password');
-      if (n) name = String(n);
-      if (e) email = String(e);
-      if (p) password = String(p);
-    }
+    const { name, email, password } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -34,7 +16,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
@@ -43,50 +24,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create new user
-    const user = await User.create({
-      name,
-      email,
-      password
-    });
-
-    // Generate JWT token
+    const user = await User.create({ name, email, password });
     const token = await generateToken(user._id.toString());
 
-    // If request was a form POST, redirect to accept route which will set cookie
-    if (!contentType.includes('application/json')) {
-      const acceptUrl = new URL('/api/auth/accept', req.url);
-      acceptUrl.searchParams.set('token', token);
-      acceptUrl.searchParams.set('next', '/dashboard');
-      const response = NextResponse.redirect(acceptUrl, { status: 303 });
-      return response;
-    }
-
-    const response = NextResponse.json(
-      {
+    // ✅ Construct manual JSON (avoids hanging under Turbopack)
+    const response = new NextResponse(
+      JSON.stringify({
         user: {
           id: user._id,
           name: user.name,
           email: user.email,
-          avatarUrl: user.avatarUrl
+          avatarUrl: user.avatarUrl,
         },
-        message: 'Account created successfully'
-      },
-      { status: 201 }
+        message: 'Account created successfully',
+      }),
+      {
+        status: 201,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+        },
+      }
     );
 
-    // Set cookie
-    response.cookies.set('auth_token', token, {
+    // ✅ Set cookie (same fix as login)
+    response.cookies.set({
+      name: 'auth_token',
+      value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: false,          // disable HTTPS for localhost
+      sameSite: 'none',       // ensures cookie sent on next redirect
+      domain: 'localhost',    // guarantees visibility immediately
       path: '/',
-      maxAge: 7 * 24 * 60 * 60 // 7 days
+      maxAge: 7 * 24 * 60 * 60, // 7 days
     });
 
     return response;
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('[SIGNUP ERROR]:', error);
     return NextResponse.json(
       { message: 'Something went wrong' },
       { status: 500 }
